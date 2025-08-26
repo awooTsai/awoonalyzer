@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>awoo AI 程式碼分析與優化工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            --awoo-red: #c83c32;
+        }
+        .editor-pane {
+            height: calc(100vh - 320px);
+            min-height: 400px;
+        }
+        #analysis-output, #optimized-code-output {
+            height: 350px;
+        }
+        /* 滾動條樣式 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        /* Prose 樣式覆蓋 */
+        .prose code { color: #e2e8f0; }
+        .prose pre { background-color: #0f172a; }
+        .prose a { color: var(--awoo-red); }
+        .prose strong { color: #f1f5f9; }
+    </style>
+</head>
+<body class="bg-[#1a202c] text-slate-200 antialiased">
+
+    <div class="container mx-auto p-4 md:p-6">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-100">awoo AI 程式碼分析工具</h1>
+            <p class="text-slate-400 mt-2">即時預覽程式碼，並取得 AI 的現代化、結構化、SEO 與無障礙優化建議。</p>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-6 editor-pane">
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col">
+                <label for="code-input" class="block text-sm font-medium text-slate-300 mb-2">HTML & CSS 原始碼</label>
+                <textarea id="code-input" class="w-full flex-grow p-3 bg-slate-900 border border-slate-700 rounded-lg resize-none focus:ring-2 focus:ring-[#c83c32] focus:border-[#c83c32] transition duration-200" placeholder="在這裡貼上您的 HTML 片段或完整文件..."></textarea>
+                <div class="mt-3 flex items-center">
+                    <input id="cms-context-checkbox" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-700 text-[#c83c32] focus:ring-[#c83c32]">
+                    <label for="cms-context-checkbox" class="ml-2 block text-sm text-slate-300">此為 CMS 區塊程式碼 (將插入 &lt;body&gt; 中)</label>
+                </div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col">
+                <label for="preview-output" class="block text-sm font-medium text-slate-300 mb-2">即時預覽</label>
+                <iframe id="preview-output" class="w-full flex-grow bg-white border border-slate-700 rounded-lg" title="Live Preview"></iframe>
+            </div>
+        </main>
+
+        <div class="flex items-center justify-center space-x-4 my-8">
+            <button id="analyze-btn" class="bg-[#c83c32] hover:bg-opacity-90 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-lg shadow-red-500/30 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                <span>✨ AI 分析與優化</span>
+            </button>
+            <button id="accessibility-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-lg shadow-slate-500/20 flex items-center justify-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <span>✨ AI 無障礙檢測</span>
+            </button>
+        </div>
+        
+        <div id="loading-spinner" class="text-center my-6 hidden">
+             <svg class="animate-spin mx-auto h-8 w-8 text-[#c83c32]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+             </svg>
+             <p class="mt-2 text-slate-400">AI 正在分析中，請稍候...</p>
+        </div>
+
+        <section id="result-section" class="hidden">
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 md:p-6">
+                <div class="border-b border-slate-600">
+                    <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button id="tab-analysis" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-[#c83c32] text-[#c83c32]">分析建議</button>
+                        <button id="tab-code" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-400">優化後程式碼</button>
+                    </nav>
+                </div>
+                <div class="mt-4">
+                    <div id="analysis-content">
+                        <div id="analysis-output" class="prose prose-invert max-w-none p-3 bg-slate-900 rounded-md overflow-auto text-slate-300"><p>點擊上方按鈕開始分析，結果將會顯示於此。</p></div>
+                    </div>
+                    <div id="code-content" class="hidden relative">
+                        <button id="copy-btn" class="absolute top-3 right-3 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-1 px-2 rounded-md transition duration-200 z-10">複製</button>
+                        <textarea id="optimized-code-output" readonly class="w-full h-full p-3 bg-slate-900 border-slate-700 rounded-md resize-none focus:ring-2 focus:ring-[#c83c32] focus:border-[#c83c32] transition duration-200"></textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer class="text-center text-xs text-slate-500 py-8 px-4">
+        <div class="flex items-center justify-center space-x-2">
+            <span>Powered by</span>
+            <a href="https://awoo.ai" target="_blank" class="inline-flex items-center transition-opacity hover:opacity-80"><img src="https://lh3.googleusercontent.com/pw/AP1GczMZZWr30_dY1Ke-Bi8Y5xkmHCR6LbpulIszDS4CBY-83hv8qlFlMUYq0BIpRHWnb-ECK73QEhMme3wZrk8MBJFjJ2AYBa13o6MtY0i6yliFbayXMCTZZ5f0kLXkpqh1nv0HMPKvDTGyUN8a_OQhNpkh6A=w451-h159-s-no-gm?authuser=0" alt="awoo 阿物科技官網" class="h-6 w-auto"></a>
+            <span class="text-slate-600">|</span>
+            <a href="https://pse.is/82rcn9" target="_blank" class="text-base font-semibold text-slate-400 underline underline-offset-2 hover:text-[#c83c32] transition-colors">蔡阿達</a>
+            <span class="text-slate-600">|</span>
+            <span>Crafted with Precision and Innovation</span>
+        </div>
+    </footer>
+
+
+    <script>
+        // DOM 元素獲取
+        const codeInput = document.getElementById('code-input');
+        const previewOutput = document.getElementById('preview-output');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const accessibilityBtn = document.getElementById('accessibility-btn');
+        const resultSection = document.getElementById('result-section');
+        const analysisOutput = document.getElementById('analysis-output');
+        const optimizedCodeOutput = document.getElementById('optimized-code-output');
+        const copyBtn = document.getElementById('copy-btn');
+        const cmsContextCheckbox = document.getElementById('cms-context-checkbox');
+        const tabAnalysis = document.getElementById('tab-analysis');
+        const tabCode = document.getElementById('tab-code');
+        const analysisContent = document.getElementById('analysis-content');
+        const codeContent = document.getElementById('code-content');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // UI 互動函式
+        codeInput.addEventListener('input', () => previewOutput.srcdoc = codeInput.value);
+        tabAnalysis.addEventListener('click', () => {
+            analysisContent.classList.remove('hidden'); codeContent.classList.add('hidden');
+            tabAnalysis.classList.add('border-[#c83c32]', 'text-[#c83c32]');
+            tabAnalysis.classList.remove('border-transparent', 'text-slate-400');
+            tabCode.classList.add('border-transparent', 'text-slate-400');
+            tabCode.classList.remove('border-[#c83c32]', 'text-[#c83c32]');
+        });
+        tabCode.addEventListener('click', () => {
+            codeContent.classList.remove('hidden'); analysisContent.classList.add('hidden');
+            tabCode.classList.add('border-[#c83c32]', 'text-[#c83c32]');
+            tabCode.classList.remove('border-transparent', 'text-slate-400');
+            tabAnalysis.classList.add('border-transparent', 'text-slate-400');
+            tabAnalysis.classList.remove('border-[#c83c32]', 'text-[#c83c32]');
+        });
+        copyBtn.addEventListener('click', () => {
+            optimizedCodeOutput.select(); document.execCommand('copy');
+            copyBtn.textContent = '已複製!'; setTimeout(() => copyBtn.textContent = '複製', 2000);
+        });
+        function setLoading(isLoading) {
+            analyzeBtn.disabled = isLoading; accessibilityBtn.disabled = isLoading;
+            loadingSpinner.classList.toggle('hidden', !isLoading);
+            resultSection.classList.toggle('hidden', isLoading);
+        }
+
+        // 綁定按鈕事件
+        analyzeBtn.addEventListener('click', () => performAnalysis('optimize'));
+        accessibilityBtn.addEventListener('click', () => performAnalysis('accessibility'));
+
+        async function performAnalysis(analysisType) {
+            const userCode = codeInput.value;
+            if (!userCode.trim()) {
+                resultSection.classList.remove('hidden');
+                analysisOutput.innerHTML = '<p class="text-yellow-400">請先在左側輸入框貼上您的程式碼。</p>';
+                return;
+            }
+            setLoading(true);
+            analysisOutput.innerHTML = '';
+            optimizedCodeOutput.value = '';
+
+            try {
+                const isCmsContext = cmsContextCheckbox.checked;
+                let prompt = '';
+                if (analysisType === 'optimize') {
+                    prompt = getOptimizePrompt(userCode, isCmsContext);
+                } else {
+                    prompt = getAccessibilityPrompt(userCode, isCmsContext);
+                }
+                
+                // ✨ 核心修改：呼叫後端 API
+                const result = await callBackendAPI(prompt);
+
+                analysisOutput.innerHTML = marked.parse(result.analysis);
+                optimizedCodeOutput.value = result.optimizedCode;
+                tabAnalysis.click();
+            } catch (error) {
+                console.error('Error during AI analysis:', error);
+                analysisOutput.innerHTML = `<p class="text-red-400 font-semibold">分析時發生錯誤</p><p class="text-slate-400 mt-2">${error.message}</p>`;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Prompt 生成函式
+        function getContextualPreamble(isCmsContext) {
+            if (!isCmsContext) return '';
+            return `**重要前提：** 使用者提供的這段程式碼是一個**片段 (fragment)**，它將會被插入到一個現有的 CMS (如 WordPress) 頁面的 \`<body>\` 標籤內。因此，你的分析和優化建議**不應該**添加多餘的 \`<html>\`, \`<head>\`, 或 \`<body>\` 標籤，除非它們原本就存在於輸入中。請專注於優化和重構所提供的程式碼片段本身。`;
+        }
+        function getOptimizePrompt(userCode, isCmsContext) {
+            const preamble = getContextualPreamble(isCmsContext);
+            return `你是一位專業的頂尖前端開發者與 SEO 專家。你的最終輸出必須是一個 JSON 物件，包含兩個鍵： "analysis" (Markdown 格式的分析報告) 和 "optimizedCode" (優化後的完整程式碼)。\n${preamble}\n程式碼:\n\`\`\`html\n${userCode}\n\`\`\`\n`;
+        }
+        function getAccessibilityPrompt(userCode, isCmsContext) {
+            const preamble = getContextualPreamble(isCmsContext);
+            return `你是一位頂尖的網頁無障礙（Accessibility, a11y）專家。你的最終輸出必須是一個 JSON 物件，包含兩個鍵： "analysis" (Markdown 格式的無障礙分析報告) 和 "optimizedCode" (修復了無障礙問題的程式碼)。\n${preamble}\n程式碼:\n\`\`\`html\n${userCode}\n\`\`\`\n`;
+        }
+
+        // ===================================================================
+        // ✨ 核心修改：呼叫我們自己的 Vercel 後端
+        // ===================================================================
+        async function callBackendAPI(prompt) {
+            const apiUrl = '/api/analyze'; // API URL 現在是我們自己的後端路徑
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        // 我們只傳送 prompt，模型等設定由後端處理
+                        prompt: prompt
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    // 如果後端回傳錯誤，顯示後端提供的錯誤訊息
+                    throw new Error(result.error?.message || `請求失敗，狀態碼: ${response.status}`);
+                }
+                
+                // 後端會直接回傳 OpenAI 的成功結果，我們從中解析
+                if (result.choices && result.choices[0].message.content) {
+                    const jsonText = result.choices[0].message.content;
+                    try {
+                        // 因為已強制 API 回傳 JSON，所以可以直接解析
+                        return JSON.parse(jsonText);
+                    } catch (parseError) {
+                        console.error("無法解析來自 AI 的內部 JSON 回應:", jsonText);
+                        throw new Error("AI 回應的格式不是有效的 JSON。");
+                    }
+                } else {
+                     throw new Error("收到了來自 AI 的無效回應格式。");
+                }
+
+            } catch (error) {
+                console.error("前端呼叫後端 API 時發生錯誤:", error);
+                throw error;
+            }
+        }
+    </script>
+</body>
+</html>
