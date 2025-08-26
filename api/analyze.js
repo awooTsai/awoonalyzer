@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: { message: 'GEMINI_API_KEY not set' } });
 
   // 3) 呼叫 Gemini 2.5 Pro（也可改成 'gemini-2.5-flash'）
-  const MODEL = 'gemini-2.5-pro';
+  const MODEL = 'gemini-2.5-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
   try {
