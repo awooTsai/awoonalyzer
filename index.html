@@ -209,46 +209,35 @@
         // ✨ 核心修改：呼叫我們自己的 Vercel 後端
         // ===================================================================
         async function callBackendAPI(prompt) {
-            const apiUrl = '/api/analyze'; // API URL 現在是我們自己的後端路徑
+  const apiUrl = '/api/analyze'; // 後端路徑
 
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        // 我們只傳送 prompt，模型等設定由後端處理
-                        prompt: prompt
-                    }),
-                });
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
 
-                const result = await response.json();
+  // 先確認 Content-Type，避免把 HTML 當 JSON 解析
+  const ct = response.headers.get('content-type') || '';
+  const isJSON = ct.includes('application/json');
+  const payload = isJSON ? await response.json() : { raw: await response.text() };
 
-                if (!response.ok) {
-                    // 如果後端回傳錯誤，顯示後端提供的錯誤訊息
-                    throw new Error(result.error?.message || `請求失敗，狀態碼: ${response.status}`);
-                }
-                
-                // 後端會直接回傳 OpenAI 的成功結果，我們從中解析
-                if (result.choices && result.choices[0].message.content) {
-                    const jsonText = result.choices[0].message.content;
-                    try {
-                        // 因為已強制 API 回傳 JSON，所以可以直接解析
-                        return JSON.parse(jsonText);
-                    } catch (parseError) {
-                        console.error("無法解析來自 AI 的內部 JSON 回應:", jsonText);
-                        throw new Error("AI 回應的格式不是有效的 JSON。");
-                    }
-                } else {
-                     throw new Error("收到了來自 AI 的無效回應格式。");
-                }
+  if (!response.ok) {
+    const msg = isJSON ? (payload?.error?.message || JSON.stringify(payload)) : payload.raw;
+    throw new Error(`請求失敗（${response.status}）\n${msg}`);
+  }
 
-            } catch (error) {
-                console.error("前端呼叫後端 API 時發生錯誤:", error);
-                throw error;
-            }
-        }
+  // 後端已包成 OpenAI-like：choices[0].message.content 是一段 JSON 字串
+  const inner = payload?.choices?.[0]?.message?.content;
+  if (!inner) throw new Error('回應缺少 choices[0].message.content');
+
+  try {
+    return JSON.parse(inner); // { analysis, optimizedCode, ... }
+  } catch (e) {
+    console.error('模型內部 JSON 解析失敗：', inner);
+    throw new Error('AI 回應的格式不是有效的 JSON。');
+  }
+}
     </script>
 </body>
 </html>
