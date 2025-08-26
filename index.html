@@ -209,7 +209,7 @@
         // ✨ 核心修改：呼叫我們自己的 Vercel 後端
         // ===================================================================
         async function callBackendAPI(prompt) {
-  const apiUrl = '/api/analyze'; // 後端路徑
+  const apiUrl = '/api/analyze';
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -217,7 +217,6 @@
     body: JSON.stringify({ prompt }),
   });
 
-  // 先確認 Content-Type，避免把 HTML 當 JSON 解析
   const ct = response.headers.get('content-type') || '';
   const isJSON = ct.includes('application/json');
   const payload = isJSON ? await response.json() : { raw: await response.text() };
@@ -227,14 +226,13 @@
     throw new Error(`請求失敗（${response.status}）\n${msg}`);
   }
 
-  // 後端已包成 OpenAI-like：choices[0].message.content 是一段 JSON 字串
   const inner = payload?.choices?.[0]?.message?.content;
   if (!inner) throw new Error('回應缺少 choices[0].message.content');
 
   try {
-    return JSON.parse(inner); // { analysis, optimizedCode, ... }
-  } catch (e) {
-    console.error('模型內部 JSON 解析失敗：', inner);
+    return JSON.parse(inner); // 這裡會拿到 { analysis, optimizedCode, ... }
+  } catch {
+    console.error('AI 回傳不是有效 JSON：', inner);
     throw new Error('AI 回應的格式不是有效的 JSON。');
   }
 }
